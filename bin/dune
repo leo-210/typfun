@@ -1,0 +1,4 @@
+(executable
+ (public_name typfun)
+ (name main)
+ (libraries typfun))
