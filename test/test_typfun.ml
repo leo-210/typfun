@@ -1,3 +1,4 @@
 let () =
     Test_lexer.test ();
-    Test_parser.test ()
+    Test_parser.test ();
+    Test_type_checker.test ()
