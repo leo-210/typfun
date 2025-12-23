@@ -1,2 +1,6 @@
 _build/
 _opam/
+
+*.cmi
+*.cmo
+*.out
