@@ -1,0 +1,97 @@
+type bin_op = 
+    | Addition
+    | Substraction
+    | Multiplication
+    | Division
+    | Concatenation
+
+type expr = 
+    | Tuple of expr list
+    | List of expr list
+    | BinOp of expr * bin_op * expr
+    | UnaryNeg of expr
+    | IntegerLiteral of int 
+    | StringLiteral of string 
+    | Identifier of string
+
+exception MissingClosingParen
+exception UnexpectedToken
+
+let force_consume l m e = match l with
+| h::t when m = h -> t
+| _ -> raise e
+
+let rec parse_expr tokens = 
+    let elem, tokens = parse_elem tokens in
+    match tokens with 
+    | Lexer.TT_Comma::tokens -> begin
+        let e, tokens = parse_expr tokens in
+        match e with
+        | Tuple l -> Tuple (elem::l), tokens
+        | _ -> Tuple ([elem; e]), tokens
+    end
+    | _ -> elem, tokens
+
+and parse_elem tokens = 
+    let term, tokens = parse_term tokens in
+    match tokens with
+    | Lexer.TT_Plus::tokens ->
+            let elem, tokens = parse_elem tokens in
+            BinOp (term, Addition, elem), tokens
+    | Lexer.TT_Minus::tokens ->
+            let elem, tokens = parse_elem tokens in
+            BinOp (term, Substraction, elem), tokens
+    | Lexer.TT_PPlus::tokens -> 
+            let elem, tokens = parse_elem tokens in
+            BinOp (term, Concatenation, elem), tokens
+    | _ -> term, tokens
+
+and parse_term tokens = 
+    let factor, tokens = parse_factor tokens in
+    match tokens with
+    | Lexer.TT_Asterisk::tokens ->
+            let term, tokens = parse_term tokens in
+            BinOp (factor, Multiplication, term), tokens
+    | Lexer.TT_Slash::tokens ->
+            let term, tokens = parse_term tokens in
+            BinOp (factor, Division, term), tokens
+    | _ -> factor, tokens
+
+and parse_factor tokens = 
+    match tokens with
+    | Lexer.TT_Minus::tokens -> 
+            let atom, tokens = parse_atom tokens in
+            UnaryNeg atom, tokens
+    | _ -> parse_atom tokens
+
+and parse_atom tokens =
+    match tokens with
+    | Lexer.TT_LParen::tokens ->
+            let e, tokens = parse_expr tokens in
+            let tokens = force_consume tokens Lexer.TT_RParen MissingClosingParen in
+            e, tokens
+    | Lexer.TT_LBracket::tokens ->
+            let l, tokens = parse_list tokens in
+            l, tokens
+    | (Lexer.TT_Integer n)::tokens -> IntegerLiteral n, tokens
+    | (Lexer.TT_String s)::tokens -> StringLiteral s, tokens
+    | (Lexer.TT_Identifier s)::tokens -> Identifier s, tokens
+    | _ -> raise UnexpectedToken
+
+(* assumes the opening [ has already been consumed *)
+and parse_list tokens =
+    match tokens with
+    | Lexer.TT_RBracket::tokens -> List [], tokens
+    | _ -> begin
+        let e, tokens = parse_expr tokens in
+        let l, tokens = parse_list tokens in
+        match l with 
+        | List l -> List (e::l), tokens
+        | _ -> failwith "unreachable"
+    end
+
+let parse tokens =
+    let e, tokens = parse_expr tokens in
+    match tokens with
+    | [] -> e
+    | _ -> raise UnexpectedToken
