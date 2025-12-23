@@ -6,7 +6,8 @@ let test_lexer_basic s exp =
         failwith s
 
 
-let () = 
+let test () =
+    Printf.printf "testing lexer...\n";
     test_lexer_basic "+" [ Lexer.TT_Plus ];
     test_lexer_basic "++" [ Lexer.TT_PPlus ];
     test_lexer_basic "/" [ Lexer.TT_Slash ];
