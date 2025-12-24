@@ -25,8 +25,6 @@ let test () =
             BinOp (
                 Parser.IntegerLiteral 1, Parser.Addition, Parser.IntegerLiteral 2);
             Parser.StringLiteral "coucou" ]);
-    test_success [ Lexer.TT_LBracket; Lexer.TT_Integer 1; Lexer.TT_RBracket ] (
-        Parser.List [ Parser.IntegerLiteral 1 ]);
     test_success [ Lexer.TT_Integer 1; Lexer.TT_Equals; Lexer.TT_Integer 1; 
             Lexer.TT_Plus; Lexer.TT_Integer 2] (Parser.BinOp (
                 Parser.IntegerLiteral 1, Parser.Equality, Parser.BinOp (

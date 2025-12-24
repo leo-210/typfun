@@ -1,7 +1,6 @@
 open Parser
 
-type types = IntegerType | StringType
-| ListType of types | TupleType of (types list) * int
+type types = IntegerType | StringType | TupleType of (types list) * int 
 | Any of int
 
 type inference_context = {
@@ -32,7 +31,6 @@ let rec infer t1 t2 ctx = match t1, t2 with
             Hashtbl.add ctx.any_corr x t;
             true
         end else infer t t' ctx
-| ListType t1, ListType t2 -> infer t1 t2 ctx
 | TupleType ([], _), TupleType ([], _) -> true
 | TupleType (h1::t1, x), TupleType (h2::t2, y) when x = y ->
         (infer h1 h2 ctx) && (infer (TupleType (t1, x - 1)) (TupleType (t2, y - 2)) ctx) 
@@ -83,7 +81,6 @@ and match_t e t ctx =
 let rec unwrap t ctx = 
     let t = true_t t ctx in
     match t with
-    | ListType t -> ListType (unwrap t ctx)
     | TupleType ([], _) -> t
     | TupleType (h::t, n) -> begin
         match unwrap (TupleType (t, n - 1)) ctx with

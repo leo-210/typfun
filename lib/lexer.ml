@@ -1,7 +1,7 @@
 type token = TT_Plus | TT_PPlus | TT_Minus | TT_Asterisk | TT_Slash | TT_Comma
-| TT_LParen | TT_RParen | TT_LBracket | TT_RBracket | TT_LBrace | TT_RBrace 
-| TT_Integer of int | TT_Float of float | TT_String of string 
-| TT_Identifier of string | TT_Let | TT_Equals | TT_If | TT_Then | TT_Else
+| TT_LParen | TT_RParen | TT_LBrace | TT_RBrace | TT_Integer of int 
+| TT_Float of float | TT_String of string | TT_Identifier of string | TT_Let 
+| TT_Equals | TT_If | TT_Then | TT_Else
 
 let keywords = 
     let ht = Hashtbl.create 16 in
@@ -64,8 +64,6 @@ let lex_line (s :string) =
         | '=' -> tokens := TT_Equals::!tokens; i := !i + 1
         | '(' -> tokens := TT_LParen::!tokens; i := !i + 1
         | ')' -> tokens := TT_RParen::!tokens; i := !i + 1
-        | '[' -> tokens := TT_LBracket::!tokens; i := !i + 1
-        | ']' -> tokens := TT_RBracket::!tokens; i := !i + 1
         | '{' -> tokens := TT_LBrace::!tokens; i := !i + 1
         | '}' -> tokens := TT_RBrace::!tokens; i := !i + 1
         | c when is_whitespace c -> i := !i + 1

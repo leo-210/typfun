@@ -10,7 +10,6 @@ type expr =
     | IfStmt of expr * expr * expr
     | LetStmt of string * expr * expr
     | Tuple of expr list
-    | List of expr list
     | BinOp of expr * bin_op * expr
     | UnaryNeg of expr
     | IntegerLiteral of int 
@@ -102,25 +101,10 @@ and parse_atom tokens =
             let e, tokens = parse_expr tokens in
             let tokens = force_consume tokens Lexer.TT_RParen in
             e, tokens
-    | Lexer.TT_LBracket::tokens ->
-            let l, tokens = parse_list tokens in
-            l, tokens
     | (Lexer.TT_Integer n)::tokens -> IntegerLiteral n, tokens
     | (Lexer.TT_String s)::tokens -> StringLiteral s, tokens
     | (Lexer.TT_Identifier s)::tokens -> Identifier s, tokens
     | _ -> raise UnexpectedToken
-
-(* assumes the opening [ has already been consumed *)
-and parse_list tokens =
-    match tokens with
-    | Lexer.TT_RBracket::tokens -> List [], tokens
-    | _ -> begin
-        let e, tokens = parse_expr tokens in
-        let l, tokens = parse_list tokens in
-        match l with 
-        | List l -> List (e::l), tokens
-        | _ -> failwith "unreachable"
-    end
 
 let parse tokens =
     let e, tokens = parse_expr tokens in
