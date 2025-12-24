@@ -3,9 +3,12 @@ type bin_op =
     | Substraction
     | Multiplication
     | Division
+    | Equality
     | Concatenation
 
 type expr = 
+    | IfStmt of expr * expr * expr
+    | LetStmt of string * expr * expr
     | Tuple of expr list
     | List of expr list
     | BinOp of expr * bin_op * expr
@@ -14,35 +17,64 @@ type expr =
     | StringLiteral of string 
     | Identifier of string
 
-exception MissingClosingParen
 exception UnexpectedToken
+exception ExpectedToken of Lexer.token
 
-let force_consume l m e = match l with
+let force_consume l m = match l with
 | h::t when m = h -> t
-| _ -> raise e
+| _ -> raise (ExpectedToken m)
 
-let rec parse_expr tokens = 
-    let elem, tokens = parse_elem tokens in
+let rec parse_expr tokens = parse_stmt tokens
+
+and parse_stmt tokens = match tokens with
+| Lexer.TT_If::tokens -> begin
+    let cond, tokens = parse_expr tokens in
+    let tokens = force_consume tokens Lexer.TT_Then in
+    let e1, tokens = parse_expr tokens in
+    let tokens = force_consume tokens Lexer.TT_Else in
+    let e2, tokens = parse_expr tokens in
+    IfStmt (cond, e1, e2), tokens
+end
+| Lexer.TT_Let::tokens -> begin
+    match tokens with
+    | (Lexer.TT_Identifier s)::Lexer.TT_Equals::tokens ->
+            let e1, tokens = parse_expr tokens in
+            let e2, tokens = parse_expr tokens in
+            LetStmt (s, e1, e2), tokens
+    | (Lexer.TT_Identifier _)::_::_ -> raise (ExpectedToken Lexer.TT_Equals)
+    | _ -> raise (ExpectedToken (Lexer.TT_Identifier "any"))
+end
+| _ -> begin
+    let e, tokens = parse_eq_elem tokens in
+    match tokens with
+    | Lexer.TT_Equals::tokens -> 
+            let expr, tokens = parse_stmt tokens in
+            BinOp (e, Equality, expr), tokens
+    | _ -> e, tokens
+end
+
+and parse_eq_elem tokens = 
+    let elem, tokens = parse_tup_elem tokens in
     match tokens with 
     | Lexer.TT_Comma::tokens -> begin
-        let e, tokens = parse_expr tokens in
+        let e, tokens = parse_eq_elem tokens in
         match e with
         | Tuple l -> Tuple (elem::l), tokens
         | _ -> Tuple ([elem; e]), tokens
     end
     | _ -> elem, tokens
 
-and parse_elem tokens = 
+and parse_tup_elem tokens = 
     let term, tokens = parse_term tokens in
     match tokens with
     | Lexer.TT_Plus::tokens ->
-            let elem, tokens = parse_elem tokens in
+            let elem, tokens = parse_tup_elem tokens in
             BinOp (term, Addition, elem), tokens
     | Lexer.TT_Minus::tokens ->
-            let elem, tokens = parse_elem tokens in
+            let elem, tokens = parse_tup_elem tokens in
             BinOp (term, Substraction, elem), tokens
     | Lexer.TT_PPlus::tokens -> 
-            let elem, tokens = parse_elem tokens in
+            let elem, tokens = parse_tup_elem tokens in
             BinOp (term, Concatenation, elem), tokens
     | _ -> term, tokens
 
@@ -68,7 +100,7 @@ and parse_atom tokens =
     match tokens with
     | Lexer.TT_LParen::tokens ->
             let e, tokens = parse_expr tokens in
-            let tokens = force_consume tokens Lexer.TT_RParen MissingClosingParen in
+            let tokens = force_consume tokens Lexer.TT_RParen in
             e, tokens
     | Lexer.TT_LBracket::tokens ->
             let l, tokens = parse_list tokens in

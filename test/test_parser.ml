@@ -27,5 +27,20 @@ let test () =
             Parser.StringLiteral "coucou" ]);
     test_success [ Lexer.TT_LBracket; Lexer.TT_Integer 1; Lexer.TT_RBracket ] (
         Parser.List [ Parser.IntegerLiteral 1 ]);
+    test_success [ Lexer.TT_Integer 1; Lexer.TT_Equals; Lexer.TT_Integer 1; 
+            Lexer.TT_Plus; Lexer.TT_Integer 2] (Parser.BinOp (
+                Parser.IntegerLiteral 1, Parser.Equality, Parser.BinOp (
+                    Parser.IntegerLiteral 1, 
+                    Parser.Addition, 
+                    Parser.IntegerLiteral 2)));
+    test_success [ Lexer.TT_If; Lexer.TT_Integer 1; Lexer.TT_Comma; 
+        Lexer.TT_Integer 4; Lexer.TT_Then; Lexer.TT_Integer 2; Lexer.TT_Else; 
+        Lexer.TT_Integer 3] (Parser.IfStmt (
+            Parser.Tuple [IntegerLiteral 1; IntegerLiteral 4],
+            Parser.IntegerLiteral 2,
+            Parser.IntegerLiteral 3));
     test_error [ Lexer.TT_Integer 1; Lexer.TT_Integer 2 ] Parser.UnexpectedToken;
-    test_error [ Lexer.TT_LParen; Lexer.TT_Integer 1 ] Parser.MissingClosingParen
+    test_error [ Lexer.TT_LParen; Lexer.TT_Integer 1 ] (
+        Parser.ExpectedToken Lexer.TT_RParen);
+    test_error [ Lexer.TT_If; Lexer.TT_Integer 1; Lexer.TT_Identifier "foo" ] (
+        Parser.ExpectedToken Lexer.TT_Then)
