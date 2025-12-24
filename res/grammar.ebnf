@@ -1,5 +1,4 @@
 literal = number | string
-list = "[" expr* "]"
 
 expr = eq_elem | eq_elem "=" expr | "if" expr "then" expr "else" expr 
 	| "let" identifier "=" expr expr
@@ -7,4 +6,4 @@ eq_elem = tuple_elem | tuple_elem "," eq_elem
 tuple_elem = term | term "+" tuple_elem | term "-" tuple_elem | term "++" tuple_elem
 term = factor | factor "*" term | factor "/" term
 factor = atom | "-" atom
-atom = literal | "(" expr ")" | identifier | list
+atom = literal | "(" expr ")" | identifier
