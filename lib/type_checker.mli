@@ -1,4 +1,7 @@
-type types = IntegerType | StringType  | TupleType of (types list) * int 
-| Any of int
+type type_variable
+and types = IntType | StrType | BoolType | TupleType of (types list) 
+| Var of type_variable
 
-val type_check : Parser.expr -> types
+val type_to_string : types -> string
+
+val analyse : Parser.expr -> types

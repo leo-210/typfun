@@ -1,97 +1,103 @@
 open Parser
 
-type types = IntegerType | StringType | TupleType of (types list) * int 
-| Any of int
-
-type inference_context = {
-    mutable next_any: int;
-    valuations: (string, types) Hashtbl.t;
-    any_corr: (int, types) Hashtbl.t
+type context = {
+    mutable next_name : char;
+    mutable next_id : int
 }
 
-let init_ctx () = {
-    next_any = 0;
-    valuations = Hashtbl.create 16;
-    any_corr = Hashtbl.create 16
+let ctx = {
+    next_name = 'a';
+    next_id = 0;
 }
 
-let rec true_t t ctx = match t with 
-| Any x -> begin
-    match Hashtbl.find_opt ctx.any_corr x with
-    | Some t' -> true_t t' ctx
-    | None -> t
-end
-| _ -> t
+type type_variable = {
+    id: int;
+    mutable name: string;
+    mutable instance : types option;
+}
+and types = IntType | StrType | BoolType | TupleType of (types list) 
+| Var of type_variable
 
-let rec infer t1 t2 ctx = match t1, t2 with
-| t1, t2 when t1 = t2 -> true
-| Any x, t | t, Any x ->  
-        let t' = true_t (Any x) ctx in
-        if t' = Any x then begin
-            Hashtbl.add ctx.any_corr x t;
-            true
-        end else infer t t' ctx
-| TupleType ([], _), TupleType ([], _) -> true
-| TupleType (h1::t1, x), TupleType (h2::t2, y) when x = y ->
-        (infer h1 h2 ctx) && (infer (TupleType (t1, x - 1)) (TupleType (t2, y - 2)) ctx) 
-| _ -> false
+let rec new_type_var () = 
+    ctx.next_id <- ctx.next_id + 1;
+    {
+        id = ctx.next_id - 1;
+        name = "";
+        instance = None
+    }
 
-let rec check (e : expr) ctx = match e with
-| IntegerLiteral _ -> IntegerType
-| StringLiteral _ -> StringType
-| Identifier s -> begin 
-    match Hashtbl.find_opt ctx.valuations s with
-    | None ->
-        Hashtbl.add ctx.valuations s (Any ctx.next_any);
-        ctx.next_any <- ctx.next_any + 1;
-        Any (ctx.next_any - 1)
-    | Some t -> t
-end
+and type_var_name t =
+    if t.name = "" then begin
+        t.name <- Char.escaped ctx.next_name;
+        ctx.next_name <- Char.chr ((Char.code ctx.next_name) - 1)
+    end;
+    t.name
+
+and type_var_to_string t = match t.instance with
+| None -> type_var_name t
+| Some t' -> type_to_string t'
+
+and type_to_string t = match t with
+| IntType -> "int"
+| StrType -> "str"
+| BoolType -> "bool"
+| TupleType [] -> ""
+| TupleType (h::[]) -> Printf.sprintf "%s" (type_to_string h)
+| TupleType (h::t) -> 
+        Printf.sprintf "%s * %s" (type_to_string h) (
+            type_to_string (TupleType t))
+| Var tv -> type_var_to_string tv
+
+module StringMap = Map.Make(String)
+
+let rec analyse e env = match e with
+| IntegerLiteral _ -> IntType
+| StringLiteral _ -> StrType
+| Identifier x -> get_type x env
+| IfStmt (cond, if_body, else_body) ->
+        let cond_type = analyse cond env in
+        unify cond_type BoolType env;
+        let if_type = analyse if_body env in
+        let else_type = analyse else_body env in
+        unify if_type else_type env;
+        if_type
+| LetStmt (v, def, body) ->
+        let def_type = analyse def env in
+        let new_env = StringMap.add v def_type env in
+        analyse body new_env
+| UnaryNeg e' -> 
+        let inner_type = analyse e' env in
+        unify inner_type IntType env;
+        IntType
+| BinOp (e1, Equality, e2) -> 
+        let t1 = analyse e1 env in
+        let t2 = analyse e2 env in
+        unify t1 t2 env;
+        BoolType
+| BinOp (e1, Concatenation, e2) ->
+        let t1 = analyse e1 env in 
+        let t2 = analyse e2 env in
+        unify t1 StrType env;
+        unify t2 StrType env;
+        StrType
 | BinOp (e1, Addition, e2) 
 | BinOp (e1, Substraction, e2) 
 | BinOp (e1, Multiplication, e2)
-| BinOp (e1, Division, e2) -> begin
-    match_t e1 IntegerType ctx;
-    match_t e2 IntegerType ctx;
-    IntegerType
-end
-| BinOp (e1, Concatenation, e2) -> begin
-    match_t e1 StringType ctx;
-    match_t e2 StringType ctx;
-    StringType
-end
-| UnaryNeg e' -> begin
-    match_t e' IntegerType ctx;
-    IntegerType
-end 
-| Tuple [] -> TupleType ([], 0)
+| BinOp (e1, Division, e2) -> 
+        let t1 = analyse e1 env in
+        let t2 = analyse e2 env in
+        unify t1 IntType env;
+        unify t2 IntType env;
+        IntType
+| Tuple [] -> TupleType []
 | Tuple (h::t) -> begin
-    let head_t = check h ctx in
-    let tail_t = check (Tuple t) ctx in
-    match tail_t with
-    | TupleType (l, n) -> TupleType (head_t::l, n + 1)
+    let h_type = analyse h env in
+    let t_type = analyse (Tuple t) env in
+    match t_type with
+    | TupleType tl -> TupleType (h_type::tl)
     | _ -> failwith "unreachable"
 end
-| _ -> failwith "not implemented" 
 
-and match_t e t ctx =
-    if not (infer (check e ctx) t ctx) then
-        failwith "incompatible types"
-
-let rec unwrap t ctx = 
-    let t = true_t t ctx in
-    match t with
-    | TupleType ([], _) -> t
-    | TupleType (h::t, n) -> begin
-        match unwrap (TupleType (t, n - 1)) ctx with
-        | TupleType (l, _) -> TupleType ((unwrap h ctx)::l, n)
-        | _ -> failwith "unreachable"
-    end
-    | _ -> t
-
-
-let type_check e = 
-    let ctx = init_ctx () in
-    let t = check e ctx in
-    unwrap t ctx
-
+(* TODO *)
+and unify t1 t2 env = ()
+and get_type t env = IntType
