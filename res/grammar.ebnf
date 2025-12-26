@@ -16,7 +16,7 @@ comparison = tuple ( ("<" | "<=" | ">" | ">=" ) comparison )?
 tuple = term ( "," tuple )?
 term = factor ( ( "+" | "-" | "++" ) term)?
 factor = unary ( ( "*" | "/" ) factor )?
-unary = "-" unary | call
+unary = ( "-" | "!" ) unary | call
 call = composition "(" args? ")"
 composition = atom ("." composition)?
 
