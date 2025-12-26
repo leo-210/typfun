@@ -2,7 +2,7 @@ type token = TT_Fn | TT_If | TT_Then | TT_Else | TT_Let | TT_In | TT_Or | TT_And
 | TT_Int of int | TT_Str of string | TT_True | TT_False | TT_Ident of string
 | TT_LParen | TT_RParen | TT_LBrace | TT_RBrace | TT_Comma | TT_Eq | TT_Eq_Eq
 | TT_Bang | TT_Bang_Eq | TT_Lt | TT_Lt_Eq | TT_Gt | TT_Gt_Eq | TT_Plus 
-| TT_Plus_Plus | TT_Minus | TT_Star | TT_Slash | TT_Dot
+| TT_Plus_Plus | TT_Minus | TT_Star | TT_Slash | TT_Dot | TT_Semicolon
 
 let keywords = 
     let ht = Hashtbl.create 16 in
@@ -114,6 +114,7 @@ let lex_line (s :string) =
         | '*' -> tokens := TT_Star::!tokens; i := !i + 1
         | '/' -> tokens := TT_Slash::!tokens; i := !i + 1
         | '.' -> tokens := TT_Dot::!tokens; i := !i + 1
+        | ';' -> tokens := TT_Semicolon::!tokens; i := !i + 1
         | c when is_whitespace c -> i := !i + 1
         | c when is_digit c -> lex_number s i tokens
         | c when is_letter c -> lex_identifier s i tokens
