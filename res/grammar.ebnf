@@ -1,9 +1,9 @@
-program = fun_decl* EOF ;
+program = expr
+
+expr = statement | statement ";" expr | "{" expr "}" | logic_or
 
 fn_decl = "fn" IDENTIFIER "(" params? ")" "{" expr "}"
 params = IDENTIFIER ( "," params )?
-
-expr = statement | statement ";" expr | "{" expr "}" | logic_or
 
 statement = if_stmt | let_stmt | fn_decl
 if_stmt = "if" expr "then" expr "else" expr
