@@ -1,9 +1,24 @@
-literal = number | string
+program = fun_decl* EOF ;
 
-expr = eq_elem | eq_elem "=" expr | "if" expr "then" expr "else" expr 
-	| "let" identifier "=" expr expr
-eq_elem = tuple_elem | tuple_elem "," eq_elem
-tuple_elem = term | term "+" tuple_elem | term "-" tuple_elem | term "++" tuple_elem
-term = factor | factor "*" term | factor "/" term
-factor = atom | "-" atom
-atom = literal | "(" expr ")" | identifier
+fn_decl = "fn" IDENTIFIER "(" params? ")" "{" expr "}"
+params = IDENTIFIER ( "," params )?
+
+expr = statement | statement ";" expr | "{" expr "}" | logic_or
+
+statement = if_stmt | let_stmt | fn_decl
+if_stmt = "if" expr "then" expr "else" expr
+let_stmt = "let" IDENTIFIER "=" expr "in" expr
+
+logic_or = logic_and ( "or" logic_or )?
+logic_and = equality ( "and" logic_and)?
+equality = comparison ( ( "==" | "!=" ) equality )?
+comparison = tuple ( ("<" | "<=" | ">" | ">=" ) comparison )?
+tuple = term ( "," tuple )?
+term = factor ( ( "+" | "-" | "++" ) term)?
+factor = unary ( ( "*" | "/" ) factor )?
+unary = "-" unary | call
+call = composition "(" args? ")"
+composition = atom ("." composition)?
+
+atom = INTEGER | STRING | "true" | "false" | "(" expr ")" | IDENTIFIER | "(" ")"
+
