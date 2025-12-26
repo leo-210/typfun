@@ -5,7 +5,7 @@ let empty_env = StringMap.empty
 
 let test_success e exp env =
     let t = analyse e env in
-    (* Printf.printf "%s\n" (type_to_string t); *)
+    Printf.printf "%s\n" (type_to_string t);
     assert (t = exp)
 
 let test_error e exp env =
@@ -22,7 +22,7 @@ let test () =
     (* basic tests *)
     test_success (Parser.BinOp (
         Parser.IntegerLiteral 1, 
-        Parser.Addition, 
+        Parser.Add, 
         Parser.IntegerLiteral 2)) IntType empty_env;
 
     test_error (Parser.Identifier "a") (Undefined_identifier "a") empty_env;
@@ -35,13 +35,13 @@ let test () =
     (* infers that a_type = b_type *)
     test_success (Parser.BinOp (
         Parser.Identifier "a",
-        Parser.Equality,
+        Parser.Eq,
         Parser.Identifier "b"
     )) BoolType env;
     (* infers that a_type = int *)
     test_success (Parser.BinOp (
         Parser.Identifier "a",
-        Parser.Addition,
+        Parser.Add,
         Parser.IntegerLiteral 1
     )) IntType env;
     (* so b_type must also be int *)
@@ -63,7 +63,7 @@ let test () =
             Parser.Identifier "b"; 
             Parser.Identifier "a";
             Parser.Identifier "d"
-        ], Parser.Equality,
+        ], Parser.Eq,
         Parser.Tuple [
             Parser.Identifier "b";
             Parser.Identifier "a";
@@ -80,7 +80,7 @@ let test () =
     let env = StringMap.add "a" a_type empty_env in
     test_error (Parser.BinOp (
         Parser.Identifier "a",
-        Parser.Equality,
+        Parser.Eq,
         Parser.Tuple [
             Parser.IntegerLiteral 1;
             Parser.Identifier "a"
@@ -91,7 +91,7 @@ let test () =
     test_success (Parser.IfStmt (
         Parser.BinOp (
             Parser.IntegerLiteral 1,
-            Parser.Equality,
+            Parser.Eq,
             Parser.IntegerLiteral 2
         ),
         Parser.StringLiteral "if body",
@@ -107,7 +107,7 @@ let test () =
     test_error (Parser.IfStmt (
         Parser.BinOp (
             Parser.IntegerLiteral 1, 
-            Parser.Equality, 
+            Parser.Eq, 
             Parser.IntegerLiteral 2),
         Parser.StringLiteral "not an int",
         Parser.IntegerLiteral 0

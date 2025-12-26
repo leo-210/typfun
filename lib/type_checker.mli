@@ -1,6 +1,6 @@
 type type_variable
 and types = IntType | StrType | BoolType | TupleType of (types list) 
-| Var of type_variable
+| FuncType of (types list) * types | Var of type_variable
 
 exception Undefined_identifier of string
 exception Recursive_unification

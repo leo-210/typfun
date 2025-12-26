@@ -16,7 +16,7 @@ type type_variable = {
     mutable instance: types option;
 }
 and types = IntType | StrType | BoolType | TupleType of (types list) 
-| Var of type_variable
+| FuncType of (types list) * types | Var of type_variable
 
 exception Undefined_identifier of string
 exception Recursive_unification
@@ -45,12 +45,24 @@ and type_to_string t = match t with
 | IntType -> "int"
 | StrType -> "str"
 | BoolType -> "bool"
-| TupleType [] -> ""
-| TupleType (h::[]) -> Printf.sprintf "%s" (type_to_string h)
-| TupleType (h::t) -> 
-        let s = type_to_string h in
-        Printf.sprintf "%s * %s" s (type_to_string (TupleType t))
+| TupleType (tl) -> Printf.sprintf "(%s)" (tuple_elems_to_string tl)
+| FuncType (tl, r) -> 
+        Printf.sprintf "(%s) -> %s" (fct_params_to_string tl) (type_to_string r)
 | Var tv -> type_var_to_string tv
+
+and tuple_elems_to_string tl = match tl with
+| [] -> ""
+| h::[] -> type_to_string h
+| h::t -> 
+        let s = type_to_string h in
+        Printf.sprintf "%s * %s" s (tuple_elems_to_string t)
+
+and fct_params_to_string tl = match tl with
+| [] -> ""
+| h::[] -> type_to_string h
+| h::t -> 
+        let s = type_to_string h in
+        Printf.sprintf "%s -> %s" s (fct_params_to_string t)
 
 module StringMap = Map.Make(String)
 
@@ -73,21 +85,21 @@ let rec analyse e env = match e with
         let inner_type = analyse e' env in
         unify inner_type IntType;
         IntType
-| BinOp (e1, Equality, e2) -> 
+| BinOp (e1, Eq, e2) -> 
         let t1 = analyse e1 env in
         let t2 = analyse e2 env in
         unify t1 t2;
         BoolType
-| BinOp (e1, Concatenation, e2) ->
+| BinOp (e1, Concat, e2) ->
         let t1 = analyse e1 env in 
         let t2 = analyse e2 env in
         unify t1 StrType;
         unify t2 StrType;
         StrType
-| BinOp (e1, Addition, e2) 
-| BinOp (e1, Substraction, e2) 
-| BinOp (e1, Multiplication, e2)
-| BinOp (e1, Division, e2) -> 
+| BinOp (e1, Add, e2) 
+| BinOp (e1, Sub, e2) 
+| BinOp (e1, Mul, e2)
+| BinOp (e1, Div, e2) -> 
         let t1 = analyse e1 env in
         let t2 = analyse e2 env in
         unify t1 IntType;
@@ -101,6 +113,7 @@ let rec analyse e env = match e with
     | TupleType tl -> TupleType (h_type::tl)
     | _ -> failwith "unreachable"
 end
+| _ -> failwith "todo"
 
 and prune t = match t with
 | Var tv -> begin
