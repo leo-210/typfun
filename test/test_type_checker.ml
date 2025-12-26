@@ -47,7 +47,7 @@ let test () =
     (* so b_type must also be int *)
     test_success (Parser.Identifier "b") IntType env;
 
-    (* tuple test *)
+    (* tuple tests *)
     let a_type = new_type_var () in
     let b_type = new_type_var () in
     let c_type = new_type_var () in
@@ -87,7 +87,7 @@ let test () =
         ]
     )) Recursive_unification env;
 
-    (* if test *)
+    (* if tests *)
     test_success (Parser.IfStmt (
         Parser.BinOp (
             Parser.IntegerLiteral 1,
@@ -113,9 +113,10 @@ let test () =
         Parser.IntegerLiteral 0
     )) (IncompatibleTypes (StrType, IntType)) empty_env;
 
-    (* test let *)
+    (* let tests *)
     test_success (Parser.LetStmt (
         "a", Parser.IntegerLiteral 1, Parser.Identifier "a")) IntType empty_env;
+
     test_error (Parser.LetStmt (
         "a", Parser.Identifier "a", Parser.StringLiteral "coucou"
     )) (Undefined_identifier "a") empty_env
