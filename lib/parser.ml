@@ -18,7 +18,7 @@ type expr =
     | Seq of expr * expr
     | IfStmt of expr * expr * expr
     | LetStmt of string * expr * expr
-    | FnDecl of string * (string list) * expr
+    | FnDecl of string * (string list) * expr * expr
     | AnonFn of (string list) * expr
     | Call of expr * (expr list)
     | Tuple of expr list
@@ -83,7 +83,8 @@ end
         let tokens = force_consume tokens Lexer.TT_LBrace in
         let body, tokens = parse_expr tokens { in_args = false } in
         let tokens = force_consume tokens Lexer.TT_RBrace in
-        FnDecl (v, params, body), tokens
+        let e, tokens = parse_expr tokens ctx in
+        FnDecl (v, params, body, e), tokens
 
 | Lexer.TT_Fn::Lexer.TT_LParen::tokens -> 
         let params, tokens = parse_params tokens in

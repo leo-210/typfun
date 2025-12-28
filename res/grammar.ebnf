@@ -3,7 +3,7 @@ program = expr
 expr = statement | statement ";" expr | "{" expr "}"
 
 statement = if_stmt | let_stmt | fn_decl | logic_or
-fn_decl = "fn" IDENTIFIER? "(" params? ")" "{" expr "}"
+fn_decl = "fn" IDENTIFIER? "(" params? ")" "{" expr "}" expr
 params = IDENTIFIER ( "," params )?
 if_stmt = "if" expr "then" expr "else" expr
 let_stmt = "let" IDENTIFIER "=" expr "in" expr
