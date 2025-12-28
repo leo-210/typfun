@@ -69,7 +69,12 @@ module StringMap = Map.Make(String)
 let rec analyse e env = match e with
 | IntegerLiteral _ -> IntType
 | StringLiteral _ -> StrType
+| BoolLiteral _ -> BoolType
 | Identifier x -> get_type x env
+| Seq (e1, e2) ->
+        let t1 = analyse e1 env in
+        unify t1 (TupleType []);
+        analyse e2 env
 | IfStmt (cond, if_body, else_body) ->
         let cond_type = analyse cond env in
         unify cond_type BoolType;
@@ -81,14 +86,55 @@ let rec analyse e env = match e with
         let def_type = analyse def env in
         let new_env = StringMap.add v def_type env in
         analyse body new_env
+| FnDecl (v, params, body, expr) ->
+        let arg_env, arg_types = List.fold_left (
+            fun (env, arg_types) arg ->
+                let new_t = new_type_var () in
+                StringMap.add arg new_t env, new_t::arg_types) (env, []) params in
+        let r = analyse body arg_env in
+        let env = StringMap.add v (FuncType (List.rev arg_types, r)) env in
+        analyse expr env
+| AnonFn (params, body) -> 
+        let arg_env, arg_types = List.fold_left (
+            fun (env, arg_types) arg ->
+                let new_t = new_type_var () in
+                StringMap.add arg new_t env, new_t::arg_types) (env, []) params in
+        let r = analyse body arg_env in
+        FuncType (List.rev arg_types, r)
+| Call (f, args) ->
+        let arg_types = List.map (fun arg -> analyse arg env) args in
+        let f_type = analyse f env in
+        let r_type = new_type_var () in
+        unify (FuncType (arg_types, r_type)) f_type;
+        r_type
 | UnaryNeg e' -> 
         let inner_type = analyse e' env in
         unify inner_type IntType;
         IntType
-| BinOp (e1, Eq, e2) -> 
+| UnaryNot e' ->
+        let inner_type = analyse e' env in
+        unify inner_type BoolType;
+        BoolType
+| BinOp (e1, LogicOr, e2)
+| BinOp (e1, LogicAnd, e2) ->
         let t1 = analyse e1 env in
         let t2 = analyse e2 env in
         unify t1 t2;
+        BoolType
+| BinOp (e1, Eq, e2) 
+| BinOp (e1, Neq, e2) -> 
+        let t1 = analyse e1 env in
+        let t2 = analyse e2 env in
+        unify t1 t2;
+        BoolType
+| BinOp (e1, Lt, e2) 
+| BinOp (e1, Leq, e2)
+| BinOp (e1, Gt, e2)
+| BinOp (e1, Geq, e2) ->
+        let t1 = analyse e1 env in
+        let t2 = analyse e2 env in
+        unify t1 IntType;
+        unify t2 IntType;
         BoolType
 | BinOp (e1, Concat, e2) ->
         let t1 = analyse e1 env in 
@@ -105,6 +151,26 @@ let rec analyse e env = match e with
         unify t1 IntType;
         unify t2 IntType;
         IntType
+
+(* TODO: rewrite with function with just one argument *)
+| BinOp(e1, Comp, e2) -> begin
+    let t1 = analyse e1 env in
+    let t2 = analyse e2 env in
+    match t2 with
+    | FuncType ([], r) ->
+            unify t1 (TupleType []);
+            FuncType ([], r)
+    | FuncType (arg::[], r) ->
+            unify t1 arg;
+            FuncType ([], r)
+    | FuncType (arg::tail, r) ->
+            unify t1 arg;
+            FuncType (tail, r)
+    | _ -> 
+            let any1 = new_type_var () in
+            let any2 = new_type_var () in
+            raise (IncompatibleTypes (t2, FuncType ([t1; any1], any2)))
+end
 | Tuple [] -> TupleType []
 | Tuple (h::t) -> begin
     let h_type = analyse h env in
@@ -113,7 +179,6 @@ let rec analyse e env = match e with
     | TupleType tl -> TupleType (h_type::tl)
     | _ -> failwith "unreachable"
 end
-| _ -> failwith "todo"
 
 and prune t = match t with
 | Var tv -> begin
@@ -154,5 +219,8 @@ and unify t1 t2 : unit =
     | TupleType (h1::tl1), TupleType (h2::tl2) ->
             unify h1 h2;
             unify (TupleType tl1) (TupleType tl2)
+    | FuncType (tl1, r1), FuncType (tl2, r2) ->
+            unify (TupleType tl1) (TupleType tl2);
+            unify r1 r2
     | _ when a = b -> ()
     | _ -> raise (IncompatibleTypes (t1, t2))
