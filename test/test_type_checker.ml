@@ -3,14 +3,16 @@ open Typfun.Type_checker
 
 let empty_env = StringMap.empty
 
+let ctx = init_ctx ()
+
 let test_success e exp env =
-    let t = analyse e env in
-    Printf.printf "%s\n" (type_to_string t);
+    let t = analyse e env ctx in
+    (* Printf.printf "%s\n" (type_to_string t); *)
     assert (t = exp)
 
 let test_error e exp env =
     try 
-        let _ = analyse e env in
+        let _ = analyse e env ctx in
         failwith "expected error got succes"
     with 
     | err when err = exp -> ()
@@ -28,8 +30,8 @@ let test () =
     test_error (Parser.Identifier "a") (Undefined_identifier "a") empty_env;
 
     (* simple inference test *)
-    let a_type = new_type_var () in
-    let b_type = new_type_var () in
+    let a_type = new_type_var ctx in
+    let b_type = new_type_var ctx in
     let env = StringMap.add "a" a_type empty_env in
     let env = StringMap.add "b" b_type env in
     (* infers that a_type = b_type *)
@@ -48,10 +50,10 @@ let test () =
     test_success (Parser.Identifier "b") IntType env;
 
     (* tuple tests *)
-    let a_type = new_type_var () in
-    let b_type = new_type_var () in
-    let c_type = new_type_var () in
-    let d_type = new_type_var () in
+    let a_type = new_type_var ctx in
+    let b_type = new_type_var ctx in
+    let c_type = new_type_var ctx in
+    let d_type = new_type_var ctx in
     let env = StringMap.add "a" a_type empty_env in
     let env = StringMap.add "b" b_type env in
     let env = StringMap.add "c" c_type env in
@@ -76,7 +78,7 @@ let test () =
     test_success (Parser.Identifier "c") StrType env;
     test_success (Parser.Identifier "d") IntType env;
 
-    let a_type = new_type_var () in
+    let a_type = new_type_var ctx in
     let env = StringMap.add "a" a_type empty_env in
     test_error (Parser.BinOp (
         Parser.Identifier "a",

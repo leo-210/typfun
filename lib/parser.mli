@@ -30,7 +30,9 @@ type expr =
     | BoolLiteral of bool
     | Identifier of string
 
-exception UnexpectedToken
-exception ExpectedToken of Lexer.token
+exception UnexpectedToken of Lexer.token
+exception ExpectedToken of Lexer.token list
+exception ExpectedTokenGot of Lexer.token list * Lexer.token
+exception ExpectedExpression
 
 val parse : Lexer.token list -> expr

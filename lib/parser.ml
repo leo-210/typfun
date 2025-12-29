@@ -30,8 +30,10 @@ type expr =
     | BoolLiteral of bool
     | Identifier of string
 
-exception UnexpectedToken
-exception ExpectedToken of Lexer.token
+exception UnexpectedToken of Lexer.token
+exception ExpectedToken of Lexer.token list
+exception ExpectedTokenGot of Lexer.token list * Lexer.token
+exception ExpectedExpression 
 
 type ctx = {
     in_args : bool
@@ -39,7 +41,8 @@ type ctx = {
 
 let force_consume l m = match l with
 | h::t when m = h -> t
-| _ -> raise (ExpectedToken m)
+| t::_ -> raise (ExpectedTokenGot ([m], t))
+| [] -> raise (ExpectedToken [m])
 
 let rec parse_expr tokens ctx = match tokens with 
 | Lexer.TT_LBrace::tokens ->
@@ -55,8 +58,12 @@ let rec parse_expr tokens ctx = match tokens with
     | _ -> stmt, tokens
 end
 
-(* TODO *)
-and parse_params tokens = [], tokens
+and parse_params tokens acc = match tokens with
+| (Lexer.TT_Ident s)::Lexer.TT_Comma::tokens -> 
+        parse_params tokens (s::acc)
+| (Lexer.TT_Ident s)::tokens ->
+        List.rev (s::acc), tokens
+| _ -> List.rev acc, tokens
 
 and parse_stmt tokens ctx = match tokens with
 | Lexer.TT_If::tokens -> begin
@@ -74,26 +81,30 @@ end
             let tokens = force_consume tokens Lexer.TT_In in
             let e2, tokens = parse_expr tokens ctx in
             LetStmt (s, e1, e2), tokens
-    | (Lexer.TT_Ident _)::_::_ -> raise (ExpectedToken Lexer.TT_Eq)
-    | _ -> raise (ExpectedToken (Lexer.TT_Ident ""))
+    | (Lexer.TT_Ident _)::t::_ -> raise (ExpectedTokenGot ([Lexer.TT_Eq], t))
+    | t::_ -> raise (ExpectedTokenGot ([Lexer.TT_Ident ""], t))
+    | _ -> raise (ExpectedToken [Lexer.TT_Ident ""])
 end
 | Lexer.TT_Fn::(Lexer.TT_Ident v)::Lexer.TT_LParen::tokens -> 
-        let params, tokens = parse_params tokens in
+        let params, tokens = parse_params tokens [] in
         let tokens = force_consume tokens Lexer.TT_RParen in
         let tokens = force_consume tokens Lexer.TT_LBrace in
         let body, tokens = parse_expr tokens { in_args = false } in
         let tokens = force_consume tokens Lexer.TT_RBrace in
         let e, tokens = parse_expr tokens ctx in
         FnDecl (v, params, body, e), tokens
+| Lexer.TT_Fn::(Lexer.TT_Ident _)::t::[] -> raise (ExpectedTokenGot ([Lexer.TT_LParen], t))
+| Lexer.TT_Fn::(Lexer.TT_Ident _)::_ -> raise (ExpectedToken [Lexer.TT_LParen])
 
 | Lexer.TT_Fn::Lexer.TT_LParen::tokens -> 
-        let params, tokens = parse_params tokens in
+        let params, tokens = parse_params tokens [] in
         let tokens = force_consume tokens Lexer.TT_RParen in
         let tokens = force_consume tokens Lexer.TT_LBrace in
         let body, tokens = parse_expr tokens { in_args = false } in
         let tokens = force_consume tokens Lexer.TT_RBrace in
         AnonFn (params, body), tokens
-| Lexer.TT_Fn::_ -> raise (ExpectedToken Lexer.TT_LParen)
+| Lexer.TT_Fn::t::_ -> raise (ExpectedTokenGot ([Lexer.TT_LParen; Lexer.TT_Ident ""], t))
+| Lexer.TT_Fn::_ -> raise (ExpectedToken [Lexer.TT_LParen; Lexer.TT_Ident ""])
 | _ -> parse_logic_or tokens ctx
 
 and parse_logic_or tokens ctx = 
@@ -195,13 +206,16 @@ and parse_call tokens ctx =
     match tokens with
     | Lexer.TT_LParen::Lexer.TT_RParen::tokens -> Call (c, []), tokens
     | Lexer.TT_LParen::tokens ->
-            let args, tokens = parse_args tokens in
+            let args, tokens = parse_args tokens [] in
             let tokens = force_consume tokens Lexer.TT_RParen in
             Call (c, args), tokens
     | _ -> c, tokens
 
-(* TODO *)
-and parse_args tokens = [], tokens
+and parse_args tokens acc =
+    let e, tokens = parse_expr tokens { in_args = true } in
+    match tokens with
+    | Lexer.TT_Comma::tokens -> parse_args tokens (e::acc)
+    | _ -> List.rev (e::acc), tokens 
 
 and parse_composition tokens ctx =
     let e1, tokens = parse_atom tokens in
@@ -223,10 +237,11 @@ and parse_atom tokens =
     | Lexer.TT_True::tokens -> BoolLiteral true, tokens
     | (Lexer.TT_Str s)::tokens -> StringLiteral s, tokens
     | (Lexer.TT_Ident s)::tokens -> Identifier s, tokens
-    | _ -> raise UnexpectedToken
+    | t::_ -> raise (UnexpectedToken t)
+    | [] -> raise ExpectedExpression
 
 let parse tokens =
     let e, tokens = parse_expr tokens { in_args = false } in
     match tokens with
     | [] -> e
-    | _ -> raise UnexpectedToken
+    | t::_ -> raise (UnexpectedToken t)
