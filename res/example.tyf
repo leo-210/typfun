@@ -1,10 +1,10 @@
 fn main() {
 	// a comment
-	let greetings = "hello world".println in
+	let greetings = { "hello world".println } in
 	greetings();
 	greetings();
 
-	let x = 0
+	let x = 0 in
 	fn fact(n) {
 		if n == 0 or n == 1 then 1
 		else n * fact(n - 1)
